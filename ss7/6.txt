@@ -1,0 +1,184 @@
+# Xây dựng báo cáo phân tích kết quả học tập từ nhiều tài liệu
+## 1. Các Prompt dùng để đọc và xử lý 4 file
+
+### Prompt 1: Đọc & trích xuất File 1 (Danh sách sinh viên và mã sinh viên)
+```
+Bạn là trợ lý dữ liệu đào tạo. Hãy đọc nội dung File 1 (Danh sách sinh viên và mã sinh viên) và trích xuất thành bảng Markdown chuẩn.
+Quy tắc bắt buộc:
+- Dùng "Mã SV" làm khóa định danh chính. Không ghép dữ liệu chỉ dựa trên họ tên (kể cả khi trùng tên).
+- Giữ nguyên giá trị gốc, không tự suy đoán hay điền thêm thông tin bị thiếu. Nếu thiếu trường nào, ghi rõ "Thiếu dữ liệu".
+- Liệt kê riêng các dòng bị trùng Mã SV hoặc có dấu hiệu trùng thông tin ở mục "Cảnh báo trùng lặp File 1".
+
+Định dạng bảng đầu ra:
+| Mã SV | Họ tên | Ghi chú |
+| --- | --- | --- |
+
+Dữ liệu File 1:
+[Dán nội dung File 1 vào đây]
+```
+### Prompt 2: Đọc & xử lý File 2 (Kết quả điểm chuyên cần và điểm bài tập)
+```
+Bạn là trợ lý dữ liệu đào tạo. Hãy đọc nội dung File 2 (Kết quả điểm chuyên cần và điểm bài tập) và chuẩn hóa thành bảng Markdown.
+Quy tắc bắt buộc:
+- Dùng "Mã SV" làm khóa định danh chính, không ghép theo họ tên.
+- Thang điểm hợp lệ là từ 0 đến 10. Nếu ô điểm trống, không rõ ràng hoặc nằm ngoài thang 0–10, ghi "Thiếu dữ liệu" (nếu ngoài thang 0–10 thì ghi kèm cảnh báo bất thường, không tự sửa hoặc tự điền điểm).
+- Phát hiện và liệt kê các bản ghi trùng Mã SV hoặc lệch dữ liệu ở mục "Cảnh báo File 2".
+
+Định dạng bảng đầu ra:
+| Mã SV | Họ tên (nếu có) | Chuyên cần | Bài tập | Ghi chú bất thường |
+| --- | --- | --- | --- | --- |
+
+Dữ liệu File 2:
+[Dán nội dung File 2 vào đây]
+```
+### Prompt 3: Đọc & xử lý File 3 (Kết quả kiểm tra giữa kỳ)
+```
+Bạn là trợ lý dữ liệu đào tạo. Hãy đọc nội dung File 3 (Kết quả kiểm tra giữa kỳ) và trích xuất thành bảng Markdown.
+Quy tắc bắt buộc:
+- Dùng "Mã SV" làm khóa định danh chính, không ghép dữ liệu chỉ dựa trên họ tên.
+- Thang điểm hợp lệ: 0–10. Nếu thiếu điểm, ghi "Thiếu dữ liệu", không tự điền điểm.
+- Liệt kê các dòng trùng Mã SV, điểm bất thường hoặc thông tin không khớp ở mục "Cảnh báo File 3".
+
+Định dạng bảng đầu ra:
+| Mã SV | Họ tên (nếu có) | Giữa kỳ | Ghi chú bất thường |
+| --- | --- | --- | --- |
+
+Dữ liệu File 3:
+[Dán nội dung File 3 vào đây]
+```
+### Prompt 4: Đọc & xử lý File 4 (Kết quả thi cuối kỳ và nhận xét của giảng viên)
+```
+Bạn là trợ lý dữ liệu đào tạo. Hãy đọc nội dung File 4 (Kết quả thi cuối kỳ và nhận xét của giảng viên) và trích xuất thành bảng Markdown.
+Quy tắc bắt buộc:
+- Dùng "Mã SV" làm khóa định danh chính, không ghép dữ liệu chỉ dựa trên họ tên.
+- Thang điểm hợp lệ: 0–10. Nếu thiếu điểm cuối kỳ, ghi "Thiếu dữ liệu", không tự điền điểm.
+- Giữ nguyên văn nhận xét của giảng viên; không tự suy đoán nguyên nhân điểm thấp cho sinh viên.
+- Liệt kê các bản ghi trùng Mã SV hoặc thiếu dữ liệu ở mục "Cảnh báo File 4".
+
+Định dạng bảng đầu ra:
+| Mã SV | Họ tên (nếu có) | Cuối kỳ | Nhận xét của giảng viên | Ghi chú bất thường |
+| --- | --- | --- | --- | --- |
+
+Dữ liệu File 4:
+[Dán nội dung File 4 vào đây]
+```
+## 2. Prompt đối chiếu dữ liệu
+```
+Bạn là chuyên viên đối chiếu và kiểm soát chất lượng dữ liệu đào tạo. Hãy đối chiếu dữ liệu đã trích xuất từ 4 file (Danh sách SV, Chuyên cần & Bài tập, Giữa kỳ, Cuối kỳ) cho lớp 30 sinh viên học phần Java cơ bản.
+
+Quy tắc bắt buộc:
+1. Chỉ đối chiếu và ghép bản ghi theo "Mã SV" làm khóa định danh chính. TUYỆT ĐỐI không ghép dữ liệu chỉ dựa trên họ tên (ngay cả khi hai sinh viên trùng tên).
+2. Kiểm tra tính toàn vẹn:
+   - Phát hiện sinh viên trùng Mã SV hoặc xuất hiện nhiều lần giữa/trong các file.
+   - Phát hiện sinh viên có họ tên giống nhau nhưng khác Mã SV, hoặc cùng Mã SV nhưng khác họ tên/thông tin giữa các file.
+   - Phát hiện sinh viên có mặt ở file điểm nhưng thiếu trong danh sách gốc, hoặc thiếu đầu điểm ở bất kỳ file nào.
+3. Thang điểm từng đầu điểm: 0–10. Nếu thiếu bất kỳ đầu điểm nào, đánh dấu ô đầu điểm đó là "Thiếu dữ liệu" (không tự điền điểm) và "Tổng kết" ghi "Thiếu dữ liệu", "Kết quả" ghi "Thiếu dữ liệu".
+4. Khi đủ cả 4 đầu điểm hợp lệ (0–10), tính điểm tổng kết theo công thức:
+   Tổng kết = Chuyên cần * 0.10 + Bài tập * 0.20 + Giữa kỳ * 0.30 + Cuối kỳ * 0.40 (làm tròn 2 chữ số thập phân).
+5. Phân loại "Kết quả":
+   - "Đạt" nếu Tổng kết >= 5.0
+   - "Chưa đạt" nếu Tổng kết < 5.0
+   - "Thiếu dữ liệu" nếu thiếu bất kỳ đầu điểm nào.
+6. Không tự suy đoán nguyên nhân sinh viên có điểm thấp; chỉ nêu đúng sự thật dữ liệu có trong file.
+
+Hãy xuất đủ 4 phần:
+- Bảng kết quả tổng hợp 30 sinh viên (Mã SV, Họ tên, Chuyên cần, Bài tập, Giữa kỳ, Cuối kỳ, Tổng kết, Kết quả).
+- Báo cáo thống kê tỷ lệ đạt và chưa đạt.
+- Danh sách các trường hợp bất thường.
+- Báo cáo nhận xét tình hình học tập dài khoảng 500 từ.
+
+Dữ liệu từ 4 file:
+[Dán dữ liệu 4 file vào đây]
+```
+## 3. Bảng kết quả tổng hợp 30 sinh viên
+
+_(Bộ dữ liệu giả lập chuẩn hóa gồm 30 sinh viên mã `SV001`–`SV030` để minh họa đầy đủ các tình huống trùng tên, thiếu điểm, trùng dữ liệu và đạt/chưa đạt)_
+
+|**STT**|**Mã SV**|**Họ tên**|**Chuyên cần**|**Bài tập**|**Giữa kỳ**|**Cuối kỳ**|**Tổng kết**|**Kết quả**|
+|-|-|-|-|-|-|-|-|-|
+|1|SV001|Nguyễn Văn An|9.0|8.5|8.0|8.5|8.40|Đạt|
+|2|SV002|Trần Thị Bình|10.0|9.0|8.5|9.0|8.95|Đạt|
+|3|SV003|Lê Hoàng Minh|8.0|7.5|7.0|7.5|7.40|Đạt|
+|4|SV004|Phạm Minh Tuấn|7.5|6.5|6.0|6.5|6.45|Đạt|
+|5|SV005|Nguyễn Văn An|8.5|7.0|6.5|7.0|6.90|Đạt|
+|6|SV006|Võ Thị Lan|9.5|8.0|8.0|8.0|8.15|Đạt|
+|7|SV007|Đặng Quốc Huy|6.0|5.0|4.5|5.0|4.95|Chưa đạt|
+|8|SV008|Bùi Thu Hà|9.0|8.5|9.0|8.5|8.70|Đạt|
+|9|SV009|Hoàng Đức Anh|7.0|6.0|5.5|Thiếu dữ liệu|Thiếu dữ liệu|Thiếu dữ liệu|
+|10|SV010|Phan Thanh Thảo|8.5|8.0|7.5|8.0|7.90|Đạt|
+|11|SV011|Vũ Ngọc Linh|5.0|4.5|4.0|4.5|4.40|Chưa đạt|
+|12|SV012|Ngô Gia Bảo|9.0|9.0|8.5|9.0|8.85|Đạt|
+|13|SV013|Lý Mỹ Duyên|8.0|7.5|7.0|6.5|7.00|Đạt|
+|14|SV014|Trịnh Quang Vinh|6.5|5.5|5.0|4.5|5.05|Đạt|
+|15|SV015|Đỗ Khánh Vy|9.5|9.5|9.0|9.5|9.35|Đạt|
+|16|SV016|Trần Thị Bình|7.0|6.0|5.5|5.0|5.55|Đạt|
+|17|SV017|Mai Văn Khải|8.0|7.0|Thiếu dữ liệu|7.5|Thiếu dữ liệu|Thiếu dữ liệu|
+|18|SV018|Nguyễn Hải Yến|8.5|8.0|8.5|8.0|8.20|Đạt|
+|19|SV019|Dương Công Danh|4.0|4.5|4.0|3.5|3.90|Chưa đạt|
+|20|SV020|Huỳnh Phương Anh|9.0|8.5|8.0|8.5|8.40|Đạt
+|21|SV021|Tạ Tuấn Kiệt|7.5|7.0|6.5|7.0|6.90|Đạt|
+|22|SV022|Cao Thị Mai|8.5|7.5|7.0|7.5|7.45|Đạt|
+|23|SV023|Châu Nhật Nam|6.0|5.0|4.0|4.5|4.60|Chưa đạt|
+|24|SV024|Lưu Hoàng Phúc|9.0|8.5|8.5|9.0|8.75|Đạt|
+|25|SV025|Đoàn Bảo Trâm|8.0|8.0|7.5|8.0|7.85|Đạt|
+|26|SV026|Nguyễn Văn An|5.5|4.0|4.5|4.0|4.30|Chưa đạt|
+|27|SV027|Hà Minh Khoa|8.5|7.5|7.0|7.0|7.25|Đạt|
+|28|SV028|Hồ Thu Trang|9.5|9.0|8.5|9.0|8.90|Đạt|
+|29|SV029|Văn Đình Phong|7.0|6.5|6.0|6.0|6.20|Đạt|
+|30|SV030|Lê Hoàng Minh|8.0|Thiếu dữ liệu|7.5|8.0|Thiếu dữ liệu|Thiếu dữ liệu|
+
+## 4. Báo cáo thống kê tỷ lệ đạt và chưa đạt
+
+-   **Tổng số sinh viên trong lớp:**  **30** sinh viên
+    
+-   **Số sinh viên có đủ dữ liệu để xét kết quả:**  **27** sinh viên (90,00% tổng lớp)
+    
+-   **Số sinh viên thiếu dữ liệu (chưa đủ đầu điểm):**  **3** sinh viên (`SV009`,  `SV017`,  `SV030` — chiếm **10,00%** tổng lớp)
+    
+|**Nhóm phân loại**|**Số lượng (SV)**|**Tỷ lệ trên tổng lớp (30 SV)**|**Tỷ lệ trên nhóm đủ dữ liệu (27 SV)**|
+|-|-|-|-|
+|**Đạt** (Tổng kết $\ge$ 5,0)|**22**|**73,33%**|**81,48%**|
+|**Chưa đạt** (Tổng kết < 5,0)|**5**|**16,67%**|**18,52%**|
+|**Thiếu dữ liệu** (Chưa xếp loại)|**3**|**10,00%**|—|
+|**Tổng cộng**|**30**|**100,00%**|**100,00%**|
+
+## 5. Danh sách các trường hợp bất thường
+
+1.  **Thiếu đầu điểm (không tự điền điểm, giữ nguyên `"Thiếu dữ liệu"`):**
+    
+    -   **SV009 (Hoàng Đức Anh):** Thiếu điểm **Cuối kỳ** ở File 4.
+        
+    -   **SV017 (Mai Văn Khải):** Thiếu điểm **Giữa kỳ** ở File 3.
+        
+    -   **SV030 (Lê Hoàng Minh):** Thiếu điểm **Bài tập** ở File 2.
+        
+2.  **Trùng họ tên nhưng khác Mã SV (đã phân tách đúng theo khóa Mã SV, không ghép nhầm):**
+    
+    -   Nhóm tên **Nguyễn Văn An** gồm 3 sinh viên khác nhau:  **SV001** (Tổng kết 8.40 - Đạt),  **SV005** (Tổng kết 6.90 - Đạt),  **SV026** (Tổng kết 4.30 - Chưa đạt).
+        
+    -   Nhóm tên **Trần Thị Bình** gồm 2 sinh viên khác nhau:  **SV002** (Tổng kết 8.95 - Đạt),  **SV016** (Tổng kết 5.55 - Đạt).
+        
+    -   Nhóm tên **Lê Hoàng Minh** gồm 2 sinh viên khác nhau:  **SV003** (Tổng kết 7.40 - Đạt),  **SV030** (Thiếu dữ liệu bài tập).
+        
+3.  **Điểm sát ngưỡng đạt (5,0):**
+    
+    -   **SV014 (Trịnh Quang Vinh):** Đạt **5.05** (chỉ cao hơn ngưỡng đạt 0,05 điểm).
+        
+    -   **SV007 (Đặng Quốc Huy):** Đạt **4.95** (chỉ kém ngưỡng đạt 0,05 điểm).
+        
+4.  **Dòng trùng lặp / lệch cấu trúc trong file nguồn (cần rà soát đối chiếu gốc):**
+    
+    -   Khi tổng hợp từ 4 file, nếu xuất hiện bản ghi lặp lại cùng `Mã SV` giữa các lần nhập hoặc lệch định dạng tên/điểm giữa các file, hệ thống ưu tiên đối chiếu theo `Mã SV` và ghi nhận dòng lặp vào nhật ký kiểm soát dữ liệu để tránh cộng dồn hoặc ghi đè sai.
+        
+
+## 6. Báo cáo nhận xét tình hình học tập (khoảng 500 từ)
+
+Sau khi tổng hợp và đối chiếu dữ liệu kết quả học phần Java cơ bản của lớp gồm 30 sinh viên từ 4 tài liệu nguồn, bức tranh kết quả học tập của lớp được ghi nhận dựa hoàn toàn trên số liệu thống kê thực tế. Trong tổng số 30 sinh viên, có 27 sinh viên đủ dữ liệu các đầu điểm thành phần (chuyên cần, bài tập, giữa kỳ, cuối kỳ) và 3 sinh viên còn thiếu ít nhất một đầu điểm.
+
+Xét trên toàn bộ 30 sinh viên, có 22 sinh viên đạt học phần (điểm tổng kết từ 5,0 trở lên), tương ứng tỷ lệ **73,33%** trên tổng sĩ số và **81,48%** nếu tính riêng trên nhóm 27 sinh viên đã có đủ điểm. Nhóm sinh viên đạt tập trung đáng kể ở mức khá và giỏi, với nhiều trường hợp có điểm tổng kết trên 8,0 như SV015 (9,35), SV002 (8,95), SV028 (8,90), SV024 (8,75), SV008 (8,70), SV001 (8,40) và SV020 (8,40). Các đầu điểm chuyên cần và bài tập của nhóm đạt nhìn chung duy trì ở mức ổn định so với mặt bằng chung của lớp.
+
+Ở chiều ngược lại, có 5 sinh viên có điểm tổng kết dưới 5,0, chiếm **16,67%** tổng sĩ số (và **18,52%** trong nhóm đủ điểm), gồm SV007 (4,95), SV023 (4,60), SV011 (4,40), SV026 (4,30) và SV019 (3,90). Đáng chú ý là trường hợp SV007 với mức điểm 4,95 chỉ cách mốc đạt 0,05 điểm, trong khi SV014 đạt 5,05 và vừa vượt ngưỡng đạt với khoảng cách sát sao. Các đầu điểm giữa kỳ và cuối kỳ (chiếm trọng số lần lượt 30% và 40%) tạo tác động lớn đến điểm tổng kết cuối cùng của các sinh viên trong nhóm chưa đạt.
+
+Về chất lượng dữ liệu tổng hợp, việc sử dụng Mã SV làm khóa định danh chính đã giúp phân tách chính xác các trường hợp trùng họ tên trong lớp, tiêu biểu là ba sinh viên cùng tên Nguyễn Văn An (SV001, SV005, SV026) và hai sinh viên cùng tên Trần Thị Bình (SV002, SV016), cũng như hai sinh viên tên Lê Hoàng Minh (SV003, SV030). Nếu ghép dữ liệu theo họ tên, kết quả đối chiếu sẽ bị sai lệch nghiêm trọng. Bên cạnh đó, ba trường hợp SV009 (thiếu điểm cuối kỳ), SV017 (thiếu điểm giữa kỳ) và SV030 (thiếu điểm bài tập) đã được giữ nguyên trạng thái `"Thiếu dữ liệu"` theo đúng quy định ràng buộc dữ liệu.
+
+Nhìn chung, đa số sinh viên có đủ điểm trong lớp đã hoàn thành học phần Java cơ bản ở mức đạt yêu cầu, với một nhóm đạt điểm cao nổi bật. Tuy nhiên, bộ phận đào tạo và giảng viên cần sớm bổ sung, kiểm tra lại dữ liệu đầu điểm còn thiếu cho SV009, SV017 và SV030 để hoàn tất việc xét kết quả đầy đủ cho toàn bộ 30 sinh viên, đồng thời rà soát các trường hợp có điểm sát ngưỡng và chưa đạt dựa trên hồ sơ đánh giá chính thức của học phần.

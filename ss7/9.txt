@@ -1,0 +1,317 @@
+# Xây dựng hệ thống tổng hợp và phân tích tài liệu nhiều nguồn
+## 1. Sơ đồ quy trình xử lý tài liệu bằng AI
+```
+flowchart TD
+    subgraph IN["NGUỒN TÀI LIỆU ĐẦU VÀO (7 FILE)"]
+        F1["3 PDF Quy định nhân sự (180 trang)"]
+        F2["2 DOCX Tuyển dụng & Đánh giá"]
+        F3["1 XLSX Dữ liệu 200 nhân viên (Read-only & Ẩn PII)"]
+        F4["1 PDF Sự cố vận hành"]
+    end
+
+    subgraph G1["GIAI ĐOẠN 1: TIẾP NHẬN & PHÂN LOẠI"]
+        P1["Phân loại theo chủ đề & Xác định mức độ ưu tiên"]
+        P2["Chiến lược phân đoạn (Chunking) từng loại file"]
+    end
+
+    subgraph G2["GIAI ĐOẠN 2: TRÍCH XUẤT & XỬ LÝ (THEO TỪNG CHUNK)"]
+        P3["Trích xuất quy trình nghiệp vụ & Chuẩn hóa cấu trúc"]
+        P4["Tóm tắt từng tài liệu + Gắn [File | Trang/Vị trí]"]
+    end
+
+    subgraph G3["GIAI ĐOẠN 3: TỔNG HỢP & ĐỐI CHIẾU"]
+        P5["Ghép nối quy trình liên quan & Phát hiện trùng lặp"]
+        P6["Phát hiện mâu thuẫn (Không tự đoán) & Thông tin thiếu"]
+    end
+
+    subgraph G4["GIAI ĐOẠN 4: PHÂN TÍCH & BÁO CÁO"]
+        P7["Yêu cầu nghiệp vụ, Chức năng (FR) & Phi chức năng (NFR)"]
+        P8["Đề xuất chức năng hệ thống & Câu hỏi xác nhận BGĐ"]
+        P9["Báo cáo BA (2.000–3.000 từ) + Bảng kiểm chứng (>=10 mục)"]
+    end
+
+    F1 & F2 & F3 & F4 --> P1 --> P2 --> P3 --> P4 --> P5 --> P6 --> P7 --> P8 --> P9
+```
+## 2. Bộ Prompt sử dụng ở từng giai đoạn
+
+### Prompt Giai đoạn 1 — Tiếp nhận, phân loại và chiến lược phân đoạn
+```
+Bạn là Chuyên viên Phân tích Nghiệp vụ (BA) cấp cao phụ trách quản trị tri thức cho dự án Hệ thống Quản lý Nhân sự (HRM).
+Nhiệm vụ: Phân loại danh mục tài liệu đầu vào theo chủ đề, xác định mức độ ưu tiên (Cao/Trung bình/Thấp) và đề xuất chiến lược chia nhỏ (chunking) cho từng loại file.
+
+Ràng buộc bắt buộc:
+- KHÔNG xử lý toàn bộ tài liệu trong một lần; chỉ lập kế hoạch phân đoạn theo từng file.
+- KHÔNG làm thay đổi dữ liệu nhân sự trong file Excel; chỉ đọc metadata/cấu trúc cột phi nhạy cảm.
+- Ẩn hoặc loại bỏ thông tin cá nhân nhạy cảm (CCCD/CMND, số điện thoại cá nhân, địa chỉ nhà riêng, lương chi tiết, tài khoản ngân hàng, thông tin sức khỏe/kỷ luật nhạy cảm) khi không phục vụ trực tiếp cho phân tích.
+- Phân biệt rõ: [Dữ liệu gốc] vs [Thông tin suy luận] vs [Đề xuất].
+
+Đầu ra:
+1. Bảng phân loại nguồn tài liệu (tên file, loại file, quy mô, chủ đề, mức ưu tiên, quy tắc ẩn PII).
+2. Chiến lược phân đoạn chi tiết cho từng loại file (kích thước chunk, điểm ngắt logic, cách gắn tên file + số trang/vị trí).
+
+Thông tin tài liệu đầu vào:
+[Dán thông tin danh mục file vào đây]
+```
+### Prompt Giai đoạn 2 — Trích xuất, chuẩn hóa và tóm tắt từng phân đoạn (Chunk)
+```
+Bạn là Chuyên viên BA đang trích xuất thông tin từ MỘT phân đoạn tài liệu cụ thể cho dự án HRM.
+Tên file: [Tên file] | Vị trí/Trang: [Số trang hoặc Sheet/Dòng]
+
+Nhiệm vụ:
+1. Trích xuất các quy trình nghiệp vụ, quy tắc, vai trò, điều kiện và dữ liệu liên quan.
+2. Chuẩn hóa thông tin theo cấu trúc thống nhất: [ID quy trình | Tên quy trình | Tác nhân | Đầu vào | Bước xử lý | Đầu ra | Nguồn trích dẫn].
+3. Viết tóm tắt ngắn gọn cho phân đoạn/tài liệu này.
+
+Ràng buộc bắt buộc:
+- MỌI thông tin trích xuất bắt buộc gắn chính xác [Tên file, Trang/Vị trí]. Nếu không thấy căn cứ, ghi "Không nêu trong đoạn trích".
+- KHÔNG tự suy đoán quy định nào đã hết hiệu lực nếu tài liệu không có căn cứ rõ ràng.
+- Loại bỏ/ẩn thông tin định danh cá nhân nhạy cảm (PII) nếu xuất hiện trong đoạn trích.
+- Gắn nhãn rõ ràng: [Dữ liệu gốc], [Thông tin suy luận], [Đề xuất].
+
+Nội dung phân đoạn tài liệu:
+[Dán nội dung của đúng 1 chunk vào đây]
+```
+### Prompt Giai đoạn 3 — Tổng hợp, đối chiếu, phát hiện trùng lặp/mâu thuẫn và thiếu hụt
+```
+Bạn là Chuyên viên Kiểm soát Nghiệp vụ HRM. Hãy đối chiếu các bản trích xuất đã chuẩn hóa từ nhiều tài liệu (3 PDF quy định, 2 DOCX quy trình, 1 XLSX 200 nhân sự đã ẩn PII, 1 PDF sự cố vận hành).
+
+Nhiệm vụ:
+1. Tổng hợp các quy trình nghiệp vụ có liên quan thành chuỗi luồng xuyên suốt.
+2. Liệt kê các nội dung trùng lặp (giống nhau hoặc chồng lấn giữa các file/trang).
+3. Liệt kê các quy định mâu thuẫn nhau giữa các tài liệu.
+4. Liệt kê các thông tin còn thiếu/chưa rõ ràng để vận hành hệ thống HRM.
+
+Ràng buộc bắt buộc:
+- TUYỆT ĐỐI KHÔNG tự giải quyết mâu thuẫn bằng cách đoán hoặc tự ý chọn một bên đúng nếu thiếu căn cứ xác thực.
+- KHÔNG kết luận quy định đã hết hiệu lực nếu tài liệu không ghi rõ thời điểm/quyết định hết hiệu lực.
+- Luôn ghi rõ [Tên file, Trang/Vị trí] cho từng mục đối chiếu và phân biệt [Dữ liệu gốc] / [Thông tin suy luận] / [Đề xuất].
+
+Dữ liệu trích xuất Giai đoạn 2:
+[Dán dữ liệu chuẩn hóa từ Giai đoạn 2 vào đây]
+```
+### Prompt Giai đoạn 4 — Phân tích yêu cầu nghiệp vụ, đề xuất chức năng, câu hỏi BGĐ & báo cáo
+```
+Bạn là Chuyên viên Phân tích Nghiệp vụ (BA) trưởng. Dựa trên kết quả Giai đoạn 2 và Giai đoạn 3, hãy:
+1. Tổng hợp các yêu cầu nghiệp vụ của hệ thống HRM.
+2. Phân loại Yêu cầu Chức năng (Functional Requirements - FR) và Yêu cầu Phi chức năng (Non-Functional Requirements - NFR).
+3. Đề xuất danh sách chức năng cần xây dựng (chia theo mức ưu tiên MVP / Phase 2).
+4. Soạn ít nhất 10 câu hỏi rõ ràng để xác nhận với Ban Giám đốc (BGĐ) nhằm giải quyết mâu thuẫn, khoảng trống dữ liệu và phạm vi hệ thống.
+5. Viết Báo cáo phân tích nghiệp vụ hoàn chỉnh dài 2.000–3.000 từ và lập Bảng kiểm chứng tối thiểu 10 kết luận quan trọng với nguồn tài liệu gốc.
+
+Ràng buộc bắt buộc:
+- Không tự đoán giải quyết mâu thuẫn; chuyển mâu thuẫn thành câu hỏi xác nhận với BGĐ.
+- Không sửa đổi dữ liệu nhân sự Excel; ẩn thông tin cá nhân nhạy cảm.
+- Phân biệt rõ [Dữ liệu gốc], [Thông tin suy luận], [Đề xuất] và gắn nguồn [File | Trang/Vị trí].
+
+Dữ liệu đầu vào từ Giai đoạn 3:
+[Dán kết quả Giai đoạn 3 vào đây]
+```
+## 3. Bảng phân loại và quản lý nguồn tài liệu
+
+|**Mã nguồn**|**Tên / Nhóm tài liệu**|**Định dạng & Quy mô**|**Chủ đề chính**|**Mức ưu tiên**|**Chiến lược phân đoạn (Chunking)**|**Quy tắc bảo mật & Ràng buộc xử lý**
+|-|-|-|-|-|-|-|
+|**SRC-01**|Quy định nhân sự — File PDF 1|PDF (phần của tổng 180 trang 3 PDF)|Nội quy, cơ cấu tổ chức, chế độ & kỷ luật|**Cao**|Chia theo từng chương/điều khoản, khoảng 8–12 trang/chunk (hoặc ~1.500–2.000 từ), giữ nguyên tiêu đề mục & số trang.|Gắn `[PDF-QuyDinh-1|
+|**SRC-02**|Quy định nhân sự — File PDF 2|PDF (phần của tổng 180 trang 3 PDF)|Chấm công, nghỉ phép, đánh giá & lương thưởng|**Cao**|Chia theo từng chính sách/mục lớn, mỗi lần 1 chunk ~10 trang, đánh dấu số trang gốc.|Gắn `[PDF-QuyDinh-2|
+|**SRC-03**|Quy định nhân sự — File PDF 3|PDF (phần của tổng 180 trang 3 PDF)|Hợp đồng, bảo mật thông tin, đào tạo & thôi việc|**Cao**|Chia theo từng phụ lục/điều khoản độc lập, không cắt ngang bảng biểu/điều kiện.|Gắn `[PDF-QuyDinh-3|
+|**SRC-04**|Quy trình tuyển dụng — File DOCX 1|DOCX|Luồng tuyển dụng, duyệt vị trí, phỏng vấn & onboarding|**Cao**|Chia theo từng giai đoạn quy trình (Yêu cầu -> Sàng lọc -> Phỏng vấn -> Offer -> Tiếp nhận), gắn tên mục/trang.|Gắn `[DOCX-TuyenDung|
+|**SRC-05**|Quy trình đánh giá nhân viên — File DOCX 2|DOCX|Chu kỳ đánh giá, tiêu chí/KPI, phê duyệt & xếp loại|**Cao**|Chia theo từng bước quy trình đánh giá và biểu mẫu/quy tắc tính điểm, giữ nguyên bảng tiêu chí.|Gắn `[DOCX-DanhGia|
+|**SRC-06**|Dữ liệu nhân sự 200 nhân viên — File Excel|XLSX (200 nhân viên)|Hồ sơ cơ bản, phòng ban, chức danh, trạng thái làm việc|**Trung bình - Cao**|Chỉ đọc cấu trúc sheet, danh sách trường dữ liệu và thống kê tổng hợp/ẩn danh; chia theo nhóm cột/sheet nếu cần.|**Read-only tuyệt đối** (không sửa file); ẩn/loại bỏ PII nhạy cảm (CCCD, SĐT, địa chỉ, lương chi tiết, tài khoản).|
+|**SRC-07**|Vấn đề phát sinh trong vận hành — File PDF|PDF|Sự cố thực tế, khiếu nại, sai lệch quy trình/dữ liệu|**Cao**|Chia theo từng nhóm sự cố/mục ghi nhận, giữ nguyên mã sự cố và số trang.|Gắn `[PDF-VanHanh|
+
+## 4. Bảng tổng hợp các yêu cầu nghiệp vụ
+
+|**Mã BR**|**Nhóm nghiệp vụ**|**Mô tả yêu cầu nghiệp vụ**|**Loại yêu cầu**|**Mức ưu tiên**|**Phân loại nguồn**|**Nguồn tham chiếu**|
+|-|-|-|-|-|-|-|
+|**BR-01**|Quản lý hồ sơ nhân sự|Lưu trữ, tra cứu và cập nhật hồ sơ nhân sự cho 200+ nhân viên theo phòng ban, chức danh, trạng thái làm việc.|Chức năng (FR)|Cao|Dữ liệu gốc + Đề xuất|`SRC-06` (Excel 200 NV), `SRC-01`|
+|**BR-02**|Bảo mật & ẩn thông tin nhạy cảm|Phân quyền truy cập theo vai trò; ẩn hoặc mã hóa thông tin cá nhân nhạy cảm (CCCD, thông tin tài chính/nhạy cảm) khi không cần thiết.|Phi chức năng (NFR) & Chức năng (FR)|Rất cao|Đề xuất (từ ràng buộc dữ liệu)|`SRC-01`, `SRC-03`, `SRC-06`|
+|**BR-03**|Quy trình tuyển dụng|Hỗ trợ quản lý yêu cầu tuyển dụng, theo dõi trạng thái ứng viên, lịch phỏng vấn, đề xuất nhận việc và tiếp nhận nhân sự mới.|Chức năng (FR)|Cao|Dữ liệu gốc + Đề xuất|`SRC-04` (DOCX Tuyển dụng)|
+|**BR-04**|Quy trình đánh giá nhân viên|Hỗ trợ thiết lập kỳ đánh giá, nhập kết quả đánh giá, luồng phê duyệt và tổng hợp xếp loại nhân viên.|Chức năng (FR)|Cao|Dữ liệu gốc + Đề xuất|`SRC-05` (DOCX Đánh giá), `SRC-02`|
+|**BR-05**|Kiểm soát quy định & phiên bản|Quản lý hiệu lực văn bản/quy định, cảnh báo các điều khoản chưa thống nhất hoặc chờ BGĐ xác nhận trước khi áp dụng tự động.|Chức năng (FR) & NFR|Cao|Thông tin suy luận + Đề xuất|`SRC-01`–`SRC-03`, `SRC-07`|
+|**BR-06**|Theo dõi & xử lý sự cố vận hành|Ghi nhận, phân loại và theo dõi tiến độ xử lý các vấn đề phát sinh trong vận hành nhân sự để tránh lặp lại sai sót.|Chức năng (FR)|Cao|Dữ liệu gốc + Đề xuất|`SRC-07` (PDF Sự cố vận hành)|
+|**BR-07**|Truy xuất nguồn gốc & kiểm toán|Lưu vết thay đổi dữ liệu (audit log) và gắn nguồn quy định/quy trình cho các quyết định nghiệp vụ quan trọng.|Phi chức năng (NFR)|Cao|Đề xuất|`SRC-01`–`SRC-07`|
+|**BR-08**|Hiệu năng, tương thích & tính toàn vẹn|Đảm bảo tốc độ phản hồi ổn định, nhập/xuất dữ liệu chuẩn xác không làm biến dạng dữ liệu gốc và dễ mở rộng khi tăng quy mô.|Phi chức năng (NFR)|Trung bình - Cao|Thông tin suy luận + Đề xuất|`SRC-06` (Excel 200 NV), `SRC-07`|
+
+## 5. Danh sách các điểm trùng lặp và mâu thuẫn
+
+_(Lưu ý: Theo nguyên tắc ràng buộc, các điểm dưới đây phản ánh cơ chế đối chiếu trên bộ tài liệu 7 file; không tự ý phán đoán quy định nào đúng hay hết hiệu lực nếu thiếu căn cứ xác nhận từ BGĐ.)_
+
+### A. Các điểm trùng lặp / chồng lấn cần hợp nhất
+
+1.  **Chồng lấn khái niệm và trách nhiệm giữa quy định văn bản và quy trình tác nghiệp:** Các nội dung về tuyển dụng, đánh giá, nghỉ phép hoặc kỷ luật xuất hiện ở cả nhóm PDF quy định (`SRC-01`–`SRC-03`) và DOCX quy trình (`SRC-04`–`SRC-05`), dễ gây cập nhật lệch pha nếu sửa một nơi mà quên nơi còn lại.
+    
+2.  **Lặp lại mô tả bước thao tác/phê duyệt trong tài liệu quy trình:** Một số bước kiểm tra hồ sơ, xác nhận thông tin hoặc bàn giao xuất hiện lặp lại ở nhiều giai đoạn trong `SRC-04` và `SRC-05`.
+    
+3.  **Trùng lặp phản ánh sự cố vận hành:** Các vấn đề phát sinh ghi nhận trong `SRC-07` có thể phản ánh cùng một điểm nghẽn lặp lại qua nhiều thời điểm hoặc liên quan trực tiếp đến các trường thông tin còn thiếu/chưa chuẩn hóa trong `SRC-06`.
+    
+
+### B. Các điểm mâu thuẫn / thiếu nhất quán cần BGĐ xác nhận
+
+1.  **Mâu thuẫn giữa quy định trên văn bản và thực tế vận hành:** Quy định trong các file PDF (`SRC-01`–`SRC-03`) hoặc quy trình (`SRC-04`–`SRC-05`) có thể quy định một luồng phê duyệt/thời hạn chuẩn, nhưng thực tế tại `SRC-07` (PDF sự cố vận hành) lại ghi nhận cách xử lý khác hoặc vướng mắc phát sinh khi áp dụng.
+    
+2.  **Mâu thuẫn / không đồng bộ giữa các tài liệu quy định hoặc giữa quy trình và file Excel 200 nhân sự:** Tên phòng ban, chức danh, trạng thái nhân sự hoặc quy tắc phân loại trong `SRC-06` có thể không khớp hoàn toàn với thuật ngữ/phân loại trong tài liệu quy định và quy trình.
+    
+3.  **Tính mơ hồ về hiệu lực áp dụng:** Khi hai đoạn quy định có nội dung khác nhau nhưng tài liệu không nêu rõ văn bản nào sửa đổi/thay thế văn bản nào, hệ thống và BA **không được tự kết luận quy định cũ đã hết hiệu lực**, mà phải đưa vào danh sách chờ BGĐ xác nhận.
+## 6. Báo cáo phân tích nghiệp vụ dài 2.000–3.000 từ
+
+# BÁO CÁO PHÂN TÍCH NGHIỆP VỤ XÂY DỰNG HỆ THỐNG QUẢN LÝ NHÂN SỰ (HRM)
+
+## 1. Tổng quan dự án và bối cảnh nghiệp vụ
+
+Trong bối cảnh doanh nghiệp phần mềm mở rộng quy mô nhân sự và chuẩn hóa hoạt động quản trị nội bộ, việc xây dựng một **Hệ thống Quản lý Nhân sự (HRM)** tập trung là bước đi cần thiết nhằm thay thế các thao tác rời rạc, thủ công và giảm thiểu sai sót trong vận hành. Ban Giám đốc (BGĐ) đã cung cấp bộ tài liệu nền tảng gồm 7 nguồn:  **03 file PDF quy định nhân sự** (tổng cộng **180 trang**),  **02 file DOCX mô tả quy trình tuyển dụng và đánh giá nhân viên**,  **01 file Excel chứa dữ liệu của 200 nhân viên**, và **01 file PDF ghi nhận các vấn đề phát sinh trong quá trình vận hành**.
+
+Khác với các bài toán phân tích trên một nguồn dữ liệu sạch, bộ tài liệu thực tế của doanh nghiệp mang tính đa định dạng, dung lượng lớn (riêng nhóm PDF quy định đã lên tới 180 trang) và tiềm ẩn nhiều rủi ro về dữ liệu: thông tin trùng lặp giữa các tài liệu, quy định mâu thuẫn nhau, trường dữ liệu chưa chuẩn hóa hoặc các điểm nghẽn đã bộc lộ trong quá trình vận hành thực tế. Vì vậy, mục tiêu của báo cáo phân tích nghiệp vụ này là thiết lập một bức tranh hiện trạng minh bạch, tách bạch rõ ràng giữa **dữ liệu gốc**,  **thông tin suy luận** và **đề xuất giải pháp**, đồng thời xác định các yêu cầu nghiệp vụ, danh sách chức năng hệ thống và những vấn đề trọng yếu cần BGĐ xác nhận trước khi chốt kiến trúc và phát triển phần mềm.
+
+## 2. Phương pháp tiếp cận và quản trị dữ liệu qua AI
+
+Để khai thác hiệu quả bộ tài liệu lớn mà không làm sai lệch thông tin hoặc vi phạm nguyên tắc bảo mật, quy trình phân tích được tổ chức thành **4 giai đoạn** xuyên suốt, áp dụng các nguyên tắc kiểm soát nghiêm ngặt:
+
+-   **Chiến lược phân đoạn (Chunking) thay vì nạp toàn bộ:** Toàn bộ 7 file không được đưa vào một câu lệnh duy nhất để tránh mất chi tiết, suy giảm độ chính xác hoặc vượt giới hạn ngữ cảnh. Tài liệu PDF được chia theo từng chương/điều khoản và gắn số trang gốc; tài liệu DOCX được chia theo từng giai đoạn quy trình; file Excel 200 nhân sự được khai thác theo hướng bảo toàn nguyên vẹn dữ liệu gốc; file PDF vận hành được chia theo từng nhóm sự cố.
+    
+-   **Truy xuất nguồn gốc bắt buộc:** Mọi nhận định, quy trình trích xuất hay yêu cầu nghiệp vụ đều phải gắn với tên file và vị trí nguồn (số trang hoặc mục/dòng tương ứng) để đảm bảo khả năng kiểm chứng khi đối chiếu với hồ sơ gốc.
+    
+-   **Tôn trọng tính nguyên bản và bảo mật dữ liệu nhân sự:** File Excel chứa dữ liệu của 200 nhân viên được giữ nguyên trạng (không chỉnh sửa trực tiếp dữ liệu gốc trong quá trình phân tích). Các thông tin cá nhân nhạy cảm (như số định danh/CCCD, thông tin liên hệ riêng tư, dữ liệu lương chi tiết hoặc các ghi chú nhạy cảm không cần thiết cho thiết kế tính năng cốt lõi) được ẩn hoặc loại bỏ trong quá trình tổng hợp và báo cáo.
+    
+-   **Không suy đoán khi thiếu căn cứ:** Khi phát hiện các quy định có dấu hiệu mâu thuẫn hoặc chưa rõ hiệu lực, chuyên viên phân tích không tự ý đoán định hay tự kết luận văn bản đã hết hiệu lực nếu tài liệu không cung cấp căn cứ rõ ràng. Tất cả các điểm này được ghi nhận trung thực và chuyển hóa thành câu hỏi xác nhận với BGĐ.
+    
+
+## 3. Phân tích hiện trạng các nhóm tài liệu nguồn
+
+### 3.1. Nhóm 03 file PDF quy định nhân sự (180 trang)
+
+Đây là nguồn tài liệu nền tảng có khối lượng lớn nhất (180 trang chia trên 3 file PDF), bao quát các khung nguyên tắc, nội quy, chế độ, quy định về mối quan hệ lao động, trách nhiệm và kỷ luật.  _[Thông tin suy luận]_ Với độ dài 180 trang trải trên nhiều tài liệu, nguy cơ lớn nhất của nhóm này nằm ở sự phân tán điều khoản, cách diễn đạt khác nhau giữa các phần hoặc sự chồng lấn khi cùng đề cập đến một chủ đề ở các thời điểm soạn thảo khác nhau. Nếu hệ thống HRM được thiết kế dựa trên việc đọc lướt hoặc gộp chung một lần, các điều kiện ngoại lệ, ngưỡng áp dụng hoặc quy tắc phê duyệt đặc thù rất dễ bị bỏ sót.
+
+### 3.2. Nhóm 02 file DOCX mô tả quy trình tuyển dụng và đánh giá nhân viên
+
+Hai tài liệu DOCX tập trung vào hai luồng nghiệp vụ vận hành cốt lõi có tần suất tương tác cao với nhiều bên liên quan:  **tuyển dụng** và **đánh giá nhân viên**.  _[Thông tin suy luận]_ Tài liệu quy trình thường mô tả các bước thao tác, vai trò tham gia và đầu ra kỳ vọng, nhưng trong thực tế doanh nghiệp, các tài liệu dạng văn bản mô tả thường gặp tình trạng chưa định nghĩa rõ trạng thái chuyển tiếp của hồ sơ, chưa quy định rõ SLA/thời hạn xử lý ở từng bước hoặc chưa đồng bộ hoàn toàn với biểu mẫu/chỉ tiêu thực tế. Khi đưa vào phần mềm HRM, các quy trình này cần được chuẩn hóa thành các trạng thái và luồng phê duyệt rõ ràng, đồng thời đối chiếu xem có điểm nào lệch với quy định trong 3 file PDF hay không.
+
+### 3.3. Nhóm 01 file Excel dữ liệu của 200 nhân viên
+
+File Excel phản ánh bức tranh thực tế về lực lượng lao động hiện tại gồm **200 nhân viên**.  _[Thông tin suy luận]_ Đây là cơ sở quan trọng để xác định cấu trúc hồ sơ nhân sự, các trường thông tin đang được sử dụng thực tế, mức độ đầy đủ/đồng nhất của dữ liệu hiện có và quy mô dữ liệu ban đầu của hệ thống. Tuy nhiên, dữ liệu bảng tính từ thực tế thường chứa các vấn đề như định dạng chưa thống nhất giữa các dòng, ô trống ở các trường không bắt buộc, hoặc sự chênh lệch giữa danh mục phòng ban/chức danh trên bảng tính với các tài liệu quy định. Việc giữ nguyên file gốc và chỉ trích xuất cấu trúc/thống kê phục vụ phân tích giúp bảo toàn toàn vẹn dữ liệu trong khi chuẩn bị kế hoạch làm sạch dữ liệu khi chuyển sang hệ thống mới.
+
+### 3.4. Nhóm 01 file PDF ghi nhận các vấn đề phát sinh trong vận hành
+
+Tài liệu này đóng vai trò như "tấm gương thực tế" phản ánh những gì đang diễn ra khi vận hành các quy định và quy trình hiện hành.  _[Thông tin suy luận]_ Các sự cố phát sinh trong vận hành thường chỉ ra những điểm yếu mà văn bản lý thuyết không thấy trước: quy trình rườm rà khó áp dụng, thông tin bàn giao thiếu chính xác, nhầm lẫn khi đối chiếu hồ sơ, hoặc các tình huống ngoại lệ chưa có hướng dẫn rõ ràng. Việc đối chiếu tài liệu này với 3 file PDF quy định, 2 file DOCX quy trình và file Excel 200 nhân viên giúp xác định các điểm mâu thuẫn hoặc khoảng trống nghiệp vụ mà hệ thống HRM cần giải quyết hoặc kiểm soát.
+
+## 4. Tổng hợp quy trình nghiệp vụ cốt lõi và điểm giao thoa
+
+Từ việc tiếp nhận và đối chiếu các nguồn tài liệu, các quy trình nghiệp vụ chính xoay quanh hệ thống HRM gồm:
+
+1.  **Quản lý hồ sơ và thông tin nhân sự:** Duy trì thông tin nhân sự xuyên suốt vòng đời làm việc của 200 nhân viên hiện hữu và nhân sự mới, phục vụ tra cứu, quản trị cơ cấu tổ chức và xuất báo cáo quản trị.
+    
+2.  **Quy trình tuyển dụng và tiếp nhận nhân sự (Onboarding):** Từ khâu phát sinh nhu cầu nhân sự, tiếp nhận/sàng lọc ứng viên, tổ chức đánh giá/phỏng vấn, ra quyết định tuyển dụng đến tiếp nhận và cập nhật hồ sơ nhân sự chính thức.
+    
+3.  **Quy trình đánh giá nhân viên:** Thiết lập kế hoạch/chu kỳ đánh giá, thu thập kết quả đánh giá, rà soát/phê duyệt và ghi nhận kết quả phục vụ công tác quản trị nhân sự.
+    
+4.  **Áp dụng quy định, chế độ và xử lý sự cố vận hành:** Áp dụng các quy định nhân sự vào từng nghiệp vụ cụ thể, đồng thời ghi nhận và xử lý các tình huống phát sinh hoặc vướng mắc trong quá trình thực hiện.
+    
+
+_[Thông tin suy luận]_ Các quy trình này không tồn tại độc lập mà có mối liên kết chặt chẽ: kết quả tuyển dụng liên kết trực tiếp với việc khởi tạo hồ sơ nhân sự; hồ sơ nhân sự và cơ cấu tổ chức là đầu vào cho kỳ đánh giá; và mọi sai lệch hoặc vướng mắc ở các khâu trên đều có thể phản ánh vào nhóm vấn đề phát sinh trong vận hành. Do đó, hệ thống HRM cần được thiết kế theo hướng liên thông dữ liệu giữa các phân hệ thay vì tách rời từng công cụ nhỏ lẻ.
+
+## 5. Phân tích yêu cầu nghiệp vụ (Chức năng & Phi chức năng)
+
+### 5.1. Nhóm yêu cầu chức năng (Functional Requirements - FR)
+
+-   **FR-01 — Quản lý hồ sơ nhân sự:** Cho phép tạo mới, xem chi tiết, cập nhật và lưu trữ lịch sử thông tin nhân sự cho toàn bộ 200 nhân viên và nhân sự gia nhập sau này; hỗ trợ tìm kiếm, lọc theo phòng ban, chức danh và trạng thái làm việc.
+    
+-   **FR-02 — Quản lý cơ cấu tổ chức và phân quyền:** Cho phép quản lý cây đơn vị/phòng ban, vị trí công việc và phân quyền truy cập theo vai trò (Ban Giám đốc, Bộ phận Nhân sự, Quản lý trực tiếp, Nhân viên) nhằm đảm bảo người dùng chỉ xem/thao tác đúng phạm vi được phép.
+    
+-   **FR-03 — Quản lý quy trình tuyển dụng:** Hỗ trợ theo dõi vị trí tuyển dụng, quản lý hồ sơ ứng viên qua từng bước của quy trình tuyển dụng, ghi nhận kết quả đánh giá và chuyển tiếp thông tin ứng viên trúng tuyển sang hồ sơ nhân sự.
+    
+-   **FR-04 — Quản lý quy trình đánh giá nhân viên:** Hỗ trợ tổ chức kỳ đánh giá theo quy trình chuẩn, nhập và tổng hợp kết quả đánh giá, thực hiện luồng phê duyệt đa cấp và lưu trữ kết quả gắn với hồ sơ nhân sự.
+    
+-   **FR-05 — Quản lý văn bản quy định và ghi chú hiệu lực/trạng thái:** Cho phép lưu trữ các quy định/chính sách tham chiếu, gắn thông tin phiên bản/trạng thái kiểm chứng và liên kết quy định tương ứng với từng nghiệp vụ (tránh áp dụng nhầm quy định chưa được xác nhận).
+    
+-   **FR-06 — Ghi nhận và theo dõi vấn đề phát sinh vận hành:** Cung cấp cơ chế ghi nhận sự cố/vướng mắc vận hành, phân loại mức độ, gán người xử lý và theo dõi trạng thái khắc phục để phục vụ cải tiến quy trình và hệ thống.
+    
+-   **FR-07 — Báo cáo và thống kê quản trị:** Cung cấp các báo cáo tổng hợp về nhân sự, tình hình tuyển dụng, kết quả đánh giá và tình trạng xử lý sự cố phục vụ điều hành của BGĐ và bộ phận nhân sự.
+    
+
+### 5.2. Nhóm yêu cầu phi chức năng (Non-Functional Requirements - NFR)
+
+-   **NFR-01 — Bảo mật và quyền riêng tư dữ liệu:** Bảo vệ dữ liệu nhân sự khỏi truy cập trái phép; áp dụng cơ chế ẩn/che giấu hoặc hạn chế hiển thị thông tin cá nhân nhạy cảm theo phân quyền và ngữ cảnh sử dụng.
+    
+-   **NFR-02 — Tính toàn vẹn và an toàn dữ liệu:** Đảm bảo quá trình nhập liệu, chuyển đổi từ bảng tính 200 nhân viên và vận hành hệ thống không gây mất mát hoặc biến dạng dữ liệu gốc; có cơ chế sao lưu và kiểm soát lỗi nhập liệu.
+    
+-   **NFR-03 — Khả năng kiểm toán và truy xuất nguồn gốc (Auditability):** Ghi nhận lịch sử ai đã tạo, sửa, phê duyệt hoặc thay đổi dữ liệu quan trọng cùng thời điểm thực hiện, đồng thời duy trì liên kết tham chiếu tới quy định/quy trình áp dụng.
+    
+-   **NFR-04 — Hiệu năng và khả năng mở rộng:** Đáp ứng mượt mà nhu cầu tra cứu, cập nhật và lập báo cáo cho quy mô hiện tại (200 nhân viên) và sẵn sàng mở rộng khi số lượng nhân sự, lịch sử đánh giá và dữ liệu vận hành tăng lên theo thời gian.
+    
+-   **NFR-05 — Tính dễ sử dụng và nhất quán giao diện:** Thiết kế luồng thao tác rõ ràng, thuật ngữ thống nhất với nghiệp vụ nhân sự, giảm thao tác lặp lại thủ công và hạn chế lỗi nhập liệu cho người dùng cuối.
+    
+
+## 6. Đề xuất danh sách chức năng hệ thống cần xây dựng
+
+_[Đề xuất]_ Để triển khai hiệu quả và kiểm soát rủi ro, hệ thống HRM nên được xây dựng theo lộ trình chia giai đoạn:
+
+### Giai đoạn 1 (MVP — Nền tảng cốt lõi & vận hành thiết yếu)
+
+1.  **Phân hệ Hồ sơ & Danh bạ nhân sự (200+ nhân viên):** Quản lý thông tin hồ sơ chuẩn hóa, tìm kiếm/lọc nhanh, quản lý trạng thái nhân sự và kiểm soát hiển thị trường nhạy cảm.
+    
+2.  **Phân hệ Phân quyền & Quản trị tài khoản:** Xác thực người dùng, phân quyền theo vai trò và ghi nhận nhật ký thao tác cơ bản.
+    
+3.  **Phân hệ Quy trình tuyển dụng cơ bản:** Quản lý đợt/vị trí tuyển dụng, trạng thái ứng viên và chuyển dữ liệu nhân sự mới vào hồ sơ.
+    
+4.  **Phân hệ Quy trình đánh giá nhân viên cơ bản:** Tạo đợt đánh giá, nhập/duyệt đánh giá theo luồng quy trình và lưu lịch sử đánh giá.
+    
+5.  **Module Ghi nhận & theo dõi sự cố vận hành:** Tiếp nhận phản ánh/vấn đề phát sinh, phân loại và theo dõi trạng thái xử lý.
+    
+6.  **Công cụ nhập dữ liệu (Import) có kiểm tra hợp lệ:** Hỗ trợ nạp dữ liệu ban đầu từ bảng tính nhân sự kèm bước kiểm tra lỗi định dạng/thiếu trường bắt buộc trước khi ghi nhận chính thức.
+    
+
+### Giai đoạn 2 (Mở rộng, tự động hóa & phân tích nâng cao)
+
+7.  **Trung tâm quản lý quy định & ma trận đối chiếu hiệu lực:** Liên kết các quy định/điều khoản với từng luồng xử lý, gắn cờ cảnh báo các nội dung đang chờ xác nhận hoặc có điểm khác biệt cần lưu ý.
+    
+8.  **Dashboard phân tích & báo cáo chuyên sâu:** Tổng hợp chỉ số biến động nhân sự, hiệu quả tuyển dụng, phân bố kết quả đánh giá và xu hướng sự cố vận hành theo thời gian.
+    
+9.  **Tự động hóa thông báo & nhắc việc:** Gửi nhắc nhở đến hạn phê duyệt, hoàn tất đánh giá hoặc xử lý sự cố vận hành.
+    
+10.  **Tích hợp & mở rộng API:** Kết nối với các công cụ nội bộ khác của doanh nghiệp khi có nhu cầu đồng bộ dữ liệu.
+    
+
+## 7. Rủi ro, điểm chưa rõ ràng và định hướng làm việc với Ban Giám đốc
+
+Quá trình phân tích cho thấy rủi ro lớn nhất của dự án không nằm ở việc thiếu tài liệu, mà nằm ở **sự phân tán thông tin qua nhiều file/trang**,  **khả năng tồn tại các quy định chồng chéo hoặc mâu thuẫn giữa văn bản quy định, mô tả quy trình và thực tế vận hành**, cũng như **các khoảng trống thông tin chưa được quy định rõ trong tài liệu**.
+
+Theo nguyên tắc phân tích nghiêm ngặt, báo cáo không tự ý suy diễn để lấp đầy chỗ trống hay tự kết luận quy định nào đã hết hiệu lực nếu chưa có văn bản/xác nhận căn cứ. Thay vào đó, các mâu thuẫn, điểm trùng lặp và trường hợp thiếu rõ ràng được tổng hợp thành bộ câu hỏi xác nhận trực tiếp với BGĐ (trình bày ở Mục 7 của hồ sơ nộp). Việc thống nhất các câu hỏi này trước khi khóa đặc tả chi tiết sẽ giúp tránh xây dựng sai luồng nghiệp vụ, hạn chế chỉnh sửa lớn về sau và tạo nền tảng vững chắc cho thiết kế hệ thống HRM chính xác, an toàn và khả thi.
+
+### 7. Danh sách ít nhất 10 câu hỏi cần xác nhận với ban giám đốc
+
+1.  **Xử lý quy định mâu thuẫn / chồng lấn:** Khi có sự khác nhau giữa nội dung trong 3 file PDF quy định nhân sự, 2 file DOCX quy trình và file PDF sự cố vận hành, nguyên tắc ưu tiên áp dụng của BGĐ là gì?
+    
+2.  **Căn cứ hiệu lực văn bản:** Có văn bản, phụ lục hoặc quyết định nào quy định rõ điều khoản nào trong các file PDF/DOCX đã hết hiệu lực hoặc được sửa đổi hay không?
+    
+3.  **Quy trình tuyển dụng chuẩn:** Luồng phê duyệt tuyển dụng, tiêu chí chuyển trạng thái ứng viên và điều kiện tiếp nhận nhân sự mới cần được chốt theo mô tả nào để đưa vào workflow hệ thống?
+    
+4.  **Quy trình đánh giá nhân viên chuẩn:** Chu kỳ đánh giá, các cấp phê duyệt và cách tính/xếp loại kết quả đánh giá áp dụng chính thức trên hệ thống gồm những bước và quy tắc nào?
+    
+5.  **Danh mục trường dữ liệu hồ sơ nhân sự:** Trong dữ liệu của 200 nhân viên (file Excel), những trường nào là bắt buộc, trường nào tùy chọn và trường nào cần chuẩn hóa danh mục trước khi đưa lên hệ thống?
+    
+6.  **Phân loại và ẩn thông tin nhạy cảm:** Những nhóm dữ liệu nhân sự nào được xếp vào diện nhạy cảm/bảo mật cao và ai được quyền xem hoặc xuất báo cáo có chứa các thông tin này?
+    
+7.  **Quyền truy cập theo vai trò:** Ma trận phân quyền chi tiết giữa Ban Giám đốc, bộ phận Nhân sự, trưởng bộ phận/quản lý và nhân viên được quy định như thế nào ở từng phân hệ?
+    
+8.  **Xử lý các trường hợp ngoại lệ trong vận hành:** Đối với các vấn đề phát sinh ghi nhận trong file PDF vận hành, đâu là cách xử lý chuẩn được BGĐ chấp thuận để đưa thành quy tắc hoặc cảnh báo trên phần mềm?
+    
+9.  **Phạm vi MVP cho lần ra mắt đầu tiên:** Trong danh sách chức năng đề xuất, BGĐ ưu tiên đưa những phân hệ nào vào phiên bản MVP giai đoạn 1 và những phân hệ nào để giai đoạn 2?
+    
+10.  **Yêu cầu lưu vết và báo cáo quản trị:** BGĐ cần hệ thống lưu vết lịch sử thay đổi dữ liệu trong bao lâu và ưu tiên những chỉ số báo cáo nào trên dashboard điều hành?
+    
+11.  **Chính sách xử lý dữ liệu không đầy đủ hoặc lệch chuẩn:** Khi nhập dữ liệu nhân sự hiện có vào hệ thống, các bản ghi thiếu thông tin hoặc lệch chuẩn sẽ được xử lý theo hướng nào (tạm khóa/cảnh báo chờ bổ sung hay cho phép lưu nháp)?
+    
+
+### 8. Bảng kiểm chứng tối thiểu 10 kết luận quan trọng với nguồn tài liệu gốc
+
+|**STT**|**Kết luận quan trọng**|**Phân loại**|**Nguồn tài liệu gốc tham chiếu**|**Trạng thái / Lưu ý kiểm chứng**|
+|-|-|-|-|-|
+|1|Bộ tài liệu đầu vào gồm 7 nguồn: 3 PDF quy định (tổng 180 trang), 2 DOCX quy trình (tuyển dụng & đánh giá), 1 Excel (200 nhân viên) và 1 PDF sự cố vận hành.|Dữ liệu gốc|Đề bài / Danh mục 7 file nguồn (3 PDF 180 trang, 2 DOCX, 1 XLSX 200 NV, 1 PDF vận hành)|Đã đối chiếu đúng số lượng và loại file|
+|2|Cần chia nhỏ tài liệu theo chiến lược phân đoạn thay vì đưa toàn bộ tài liệu vào một Prompt duy nhất.|Đề xuất (từ ràng buộc)|Ràng buộc dữ liệu & Giai đoạn 1 quy trình|Bắt buộc áp dụng ở mọi bước xử lý AI|
+|3|Mọi thông tin trích xuất phải gắn với tên file và số trang hoặc vị trí nguồn tương ứng.|Đề xuất (từ ràng buộc)|Ràng buộc dữ liệu & Giai đoạn 2 quy trình|Đảm bảo truy xuất nguồn gốc minh bạch|
+|4|Không được tự giải quyết các quy định mâu thuẫn bằng cách đoán mà phải chuyển sang xác nhận với BGĐ.|Đề xuất (từ ràng buộc)|Ràng buộc dữ liệu & Giai đoạn 3–4|Tránh áp đặt suy đoán chủ quan|
+|5|Không được làm thay đổi dữ liệu nhân sự trong file Excel gốc (200 nhân viên).|Đề xuất (từ ràng buộc)|Ràng buộc dữ liệu & File Excel 200 nhân viên|Giữ nguyên trạng file nguồn khi phân tích|
+|6|Phải ẩn hoặc loại bỏ thông tin cá nhân nhạy cảm khi không cần thiết cho phân tích.|Đề xuất (từ ràng buộc)|Ràng buộc dữ liệu & File Excel / Quy định|Áp dụng cho trích xuất, bảng biểu và báo cáo|
+|7|Không được kết luận một quy định đã hết hiệu lực nếu tài liệu không cung cấp căn cứ.|Đề xuất (từ ràng buộc)|Ràng buộc dữ liệu & 3 File PDF quy định (180 trang)|Mọi thay đổi hiệu lực cần căn cứ hoặc xác nhận BGĐ|
+|8|Hệ thống HRM cần hỗ trợ quản lý hồ sơ cho quy mô hiện tại 200 nhân viên và các luồng tuyển dụng, đánh giá.|Thông tin suy luận + Đề xuất|File Excel (200 nhân viên), 2 File DOCX quy trình|Cần BGĐ chốt danh mục trường bắt buộc|
+|9|Các vấn đề phát sinh trong quá trình vận hành cần được đưa vào phân tích để nhận diện điểm nghẽn và yêu cầu hệ thống.|Thông tin suy luận + Đề xuất|File PDF sự cố vận hành & 3 File PDF quy định|Đối chiếu trực tiếp với thực tế vận hành|
+|10|Yêu cầu hệ thống phải phân tách rõ Yêu cầu Chức năng (FR) và Yêu cầu Phi chức năng (NFR), kèm phân kỳ chức năng.|Đề xuất|Giai đoạn 4 yêu cầu nghiệp vụ & Tổng hợp 7 nguồn|Phục vụ trực tiếp thiết kế kiến trúc hệ thống|
+|11|Cần ít nhất 10 câu hỏi làm việc với BGĐ để làm rõ các mâu thuẫn, khoảng trống quy định và phạm vi triển khai.|Đề xuất|Giai đoạn 3–4 & Yêu cầu đầu ra mục 7|Đã lập 11 câu hỏi cụ thể ở Mục 7|
